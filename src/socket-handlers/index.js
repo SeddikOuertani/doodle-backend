@@ -1,11 +1,17 @@
+const redisClient = require("../redis");
+const { removeStepsByField } = require('../redis/handlers')
+
 module.exports.handleConnection = async (socket) => {
-  socket.on('step', data => {
-    console.log(data)
-    console.log(socket.id)
+  console.log('A user connected:', socket.id);
+  socket.on('step', async (data) => {
+    const stepData = {...data, userId: socket.id}
+    socket.broadcast.emit('stepadded', stepData)
+    await redisClient.rPush('steps', JSON.stringify(stepData))
   })
 
   // Handle disconnections
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log('A user disconnected:', socket.id);
+    await removeStepsByField(redisClient, { key: 'userId', value: socket.id })
   });
 }
