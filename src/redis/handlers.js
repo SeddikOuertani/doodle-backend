@@ -1,20 +1,31 @@
 module.exports = {
-  removeStepsByField: async (redisClient, field) => {
+  removeStepsByFields: async (redisClient, ...fields) => {
     try {
-      const actions = await redisClient.lRange('steps', 0, -1);
+      console.log(fields)
+      const steps = await redisClient.lRange('steps', 0, -1);
 
-      const filteredActions = actions.filter(stringifiedAction => {
-        const action = JSON.parse(stringifiedAction);
-        return action[field.key] !== field.value;
+      const filteredSteps = steps.map(strStep => JSON.parse(strStep)).filter(step => {
+        let stepStays = true
+        for (let field of fields) {
+          if (step[field.key] === field.value){
+            stepStays = false
+            break
+          }
+        }
+        return stepStays
       });
 
       await redisClient.del('steps');
 
       // Add filtered messages back to the list
-      for (const action of filteredActions) {
-        await redisClient.rPush('steps', action);
+      for (const step of filteredSteps) {
+        await redisClient.rPush('steps', JSON.stringify(step));
       }
-      console.log(`All steps with ${field.key} = ${field.value} are removed`)
+
+      for (let field of fields) {
+        console.log(`All steps with ${field.key} = ${field.value} are removed`)
+      }
+      return filteredSteps
     } catch (error) {
       console.error(error)
     }
